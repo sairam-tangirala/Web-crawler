@@ -1,0 +1,109 @@
+#Robinson Academic Programs Crawler
+#Let's visit the website of our college and collect information about the academic programs.
+
+seed = 'https://robinson.gsu.edu/academic-programs/'
+
+
+#Let's create another load function ... out of laziness, we hard-coded the encoding. We can verify by looking at the HTML source that this site uses UTF-8 encoding.
+def load_robinson_soup(url):
+    import urllib2 as ul
+    html_doc = ul.urlopen(url, 'b').read()
+    return BeautifulSoup(html_doc, 'html.parser')
+    
+    
+ soup = load_robinson_soup(seed)
+    
+ for a in filter(lambda el: el.text.lower().find('more')>=0 , soup.findAll('a', href=True)):
+    print a.text.strip(), a['href']
+    
+ soup2 = load_robinson_soup('https://robinson.gsu.edu/mba-programs/professional-mba/')
+ 
+ soup2.find_all('h1', class_='program-title')
+ 
+ f = soup2.find_all('h2')[10]
+';'.join([ p.text.strip() for p in f.parent.find_all('p')])
+
+###############
+def extract_info(soup):
+    data = {}
+    fields = [u'Title', u'Duration', u'Format', u'Tuition', u'Location']
+    for f in fields:
+        data[f] = [ np.nan ]
+
+    titles = soup.find_all('h1', class_='program-title')
+    if len(titles)>0:
+        data[u'Title'] = [ titles[0].text ]
+    fields = ['Title', 'Duration', 'Format', 'Tuition', 'Location']
+    for s in soup.find_all('h2'):
+        if s.text.strip() in fields:
+            lst = s.parent.find_all('p') + s.parent.find_all('li')
+            if len(lst)>0:
+                data[s.text.strip()] = [ ';'.join([ p.text.strip() for p in lst]) ]
+    return data
+    
+    #############
+    
+    def only_rbc(url):
+    return (url.find('://robinson.gsu.edu')>0) | (url[0]=='/')
+    
+    soup2.select('#genesis-content > article > div > div')[0].find_all('h2')
+    
+
+#Maintaining a Queue
+#We're going to follow any link that indicates more information. Since there is no guaranty that page references will not create a cycle, we need to keep track of all visited pages.
+
+sleep_time = 13
+
+seed = 'https://robinson.gsu.edu/academic-programs/'
+queue = {}
+print seed
+soup = load_robinson_soup(seed)
+for a in filter(lambda a: only_rbc(a['href']), soup.findAll('a', href=True)):
+    if a['href'][0]=='/':
+        pc = ul.urlparse.urlsplit(seed)
+        ##print pc.scheme+'://'+pc.hostname+a['href']  
+        queue[pc.scheme+'://'+pc.hostname+a['href']] = 1
+    else:
+        queue[a['href']] = 1
+queue[seed] = 0
+print len(queue.keys())
+
+def add_links_to_queue(soup, url):
+    global queue
+    for a in filter(lambda a: only_rbc(a['href']), soup.findAll('a', href=True)):
+        if a['href'][0]=='/':
+            pc = ul.urlparse.urlsplit(url)
+            ##print pc.scheme+'://'+pc.hostname+a['href']  
+            qk = pc.scheme+'://'+pc.hostname+a['href']
+        else:
+            qk = a['href']
+        if not qk in queue.keys():
+            queue[qk] = 1
+            
+################
+programs_df = pd.DataFrame()
+
+while np.array(map(lambda x: x>0, queue.values())).sum()>0:
+    urls = np.array(queue.keys())[np.array(map(lambda x: x>0, queue.values()))]
+    url = urls[0]  ## take the first one
+    
+    print "Remaining %d\tTrying %s"%(len(urls), url)
+    if is_allowed(robots_pat, url):
+        try:
+            soup = load_robinson_soup(url)
+            add_links_to_queue(soup, url)
+            data = extract_info(soup)
+            if not np.nan in data['Title']:
+                print data
+                programs_df = pd.concat([programs_df, pd.DataFrame(data=data)])
+            queue[url] = 0
+        except Exception as e:
+            print e
+        finally:
+            queue[url] -= 1 ## reduce trial count
+        time.sleep(sleep_time)
+    else:
+        queue[url] = -999
+
+################
+

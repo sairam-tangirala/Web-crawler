@@ -1,0 +1,87 @@
+%%sh
+#pushd data/apartmentguide.com > /dev/null
+#wget https://www.apartmentguide.com/robots.txt
+#popd > /dev/null
+head -20 data/apartmentguide.com/robots.txt
+grep SITEMAP data/apartmentguide.com/robots.txt
+
+sitemap = BeautifulSoup(ul.urlopen('https://www.apartmentguide.com/sitemap.xml').read(), 'lxml')
+print sitemap.prettify()[:600]
+
+
+sitemap_children = sitemap.find_all('sitemap')
+print len(sitemap_children)
+
+### This function traverses recursivly through a tree of site mapes
+### we assume it's a tree and there are no cycles, otherwise we need to
+### ensure that we don't run into an endless loop
+
+###sitemap_df = pd.DataFrame()
+
+############################
+def collect_urls(url):
+    global sitemap_df
+    global sitemap_dir
+    
+    print "visiting '%s', current number of urls: %d"%(url, sitemap_df.shape[0])
+    sitemap = BeautifulSoup(ul.urlopen(url).read(), 'lxml')
+    
+    ## visit any chidren
+    for smap in sitemap.find_all('sitemap'):
+        sm_url = smap.find('loc').text
+        sm_lastmod = smap.find('lastmod').text
+        collect_urls(sm_url)
+        
+    ## collect urls
+    url_df = pd.DataFrame()
+    for el in sitemap.find_all('url'):
+        data = {'URL': [el.find('loc').text],
+                'LastModified': [el.find('lastmod').text],
+                'ChangeFrequency': [el.find('changefreq').text]
+               }
+        df = pd.DataFrame(data=data)
+        url_df = pd.concat([url_df, df])
+    f = ul.urlparse.urlsplit(url).path.split('.')[0].decode('UTF-8').replace('/', '_')
+    url_df.to_csv(os.path.join(sitemap_dir, f+".csv"), index=None, header=None)
+    sitemap_df = pd.concat([sitemap_df, url_df])
+    time.sleep(13)
+    
+    
+##################################    
+# Run crawler
+sitemap_df = pd.DataFrame()
+sitemap_dir = os.path.join('data', 'apartmentguide.com')
+if not os.path.isdir(sitemap_dir):
+    os.makedirs(sitemap_dir)
+    
+sitemap_fn = os.path.join(sitemap_dir, 'sitemap.csv')
+
+collect_urls('https://www.apartmentguide.com/sitemap.xml')
+
+
+####################################
+
+sitemap_df.to_csv(os.path.join(sitemap_dir, 'sitemap.csv'), index=None)
+
+print sitemap_df.shape
+sitemap_df.tail()
+
+
+ul.urlparse.urlsplit('https://www.apartmentguide.com/sitemap/PropTypesCities/sitemap_0000.xml')
+
+
+sitemap = BeautifulSoup(ul.urlopen('https://www.apartmentguide.com/sitemap/PropTypesCities/sitemap_0000.xml').read(), 'lxml')
+
+sitemap_df = pd.DataFrame()
+
+for el in sitemap.find_all('url'):
+    data = {'URL': [el.find('loc').text],
+            'LastModified': [el.find('lastmod').text],
+            'ChangeFrequency': [el.find('changefreq').text]
+    }
+    df = pd.DataFrame(data=data)
+    sitemap_df = pd.concat([sitemap_df, df])
+print sitemap_df.shape
+sitemap_df.head()
+
+

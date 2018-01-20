@@ -1,0 +1,59 @@
+
+Introduction
+
+JavaScript Object Notation or JSON is an open-standard file format that uses human-readable text to transmit data objects consisting of attribute–value pairs and array data types (or any other serializable value). It is a very common data format used for asynchronous browser–server communication, including as a replacement for XML in some AJAX-style systems.
+
+JSON is a language-independent data format. It was derived from JavaScript, but as of 2017 many programming languages include code to generate and parse JSON-format data. The official Internet media type for JSON is application/json. JSON filenames use the extension .json.
+Tools
+
+We focus on two tools:
+
+    Python package json https://docs.python.org/2/library/json.html
+    UNIX command line tool jq https://stedolan.github.io/jq/
+
+References
+
+    Tweet data dictionaries https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/tweet-object
+    https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/intro-to-tweet-json.html
+    Parsing JSON with jq http://www.compciv.org/recipes/cli/jq-for-parsing-json/
+
+Data Set
+
+We use an small subset of a Twitter data-set, which contains over 170,000,000 tweets collected during 3 months leading up to the 2012 presidential elections. The original data files are posted at https://old.datahub.io/dataset/twitter-2012-presidential-election
+
+%%sh
+head -1 twitter200.json | jq '.'
+
+
+import json
+import os, sys
+
+MAX_LINES = 10
+with open('twitter200.json') as io:
+    line = io.readline()
+    while line and MAX_LINES>0:
+        row = json.loads(line.strip())
+        print row.keys()
+        
+        # end of while-body
+        MAX_LINES -= 1
+        line = io.readline()
+
+
+##############
+#Table of users and web-sites
+#Let's create a table of users and web-sites they are tweeted about. This may be useful to create a graph between web-sites determined by the number of shared uses. Eventually, we could also include a sentiment analysis of the tweet.
+
+### Let's start with the core loop
+MAX_LINES = 10
+with open('twitter200.json') as io:
+    line = io.readline()
+    while line and MAX_LINES>0:
+        row = json.loads(line.strip())
+        print row.keys()
+        
+        # end of while-body
+        MAX_LINES -= 1
+        line = io.readline()
+        
+ 
